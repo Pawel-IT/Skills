@@ -71,7 +71,7 @@ interface LeadRepository
     /** @return list<Lead> Ordered newest-first by created_at. */
     public function findByStage(LeadStage $stage): array;
 
-    /** $lead must not have an id yet; returns the assigned id. */
+    /** $lead has no id yet; assigns and returns one. @throws DuplicateLead if the email already exists. */
     public function save(NewLead $lead): LeadId;
 
     /** Records the transition timestamp alongside the stage change. */
@@ -81,6 +81,6 @@ interface LeadRepository
 
 **Deliberately omitted:**
 - `deleteById()` — no caller needs it yet; add when one does
-- `findByAssignedUser()` — belongs in a separate read-side query contract, not here
+- `findByAssignedUser()` — belongs in a separate read-side query contract, not here. findByStage is part of the lead's own lifecycle. findByAssignedUser is a cross-cutting query about a collection. Same DB table, different seam
 
 Value objects (`LeadId`, `NewLead`) and a backed enum (`LeadStage`) carry the contract instead of primitives. The ordering invariant and failure modes are in the doc comment, not hidden in an implementation. The fake is four in-memory methods — no mocking framework needed. Eloquent and HubSpot implementations come after sign-off.

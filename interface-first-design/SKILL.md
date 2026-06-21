@@ -72,11 +72,13 @@ interface ContactRepository
 {
     public function findByEmail(Email $email): ?Contact;
 
-    // Notice the `NewContact` value object hides the internal structure of a contact?
-    // Notice how the implementation checks for duplicates for you and does other important functionality caller wouldn't want to worry about? 
-    // This is a good example of the point of this skill and how to design an interface that is useful for the caller and hides the implementation details.
-
-    /** @throws DuplicateContact if the email is already registered. */
+    /**
+     * Persists a new contact and returns its assigned identity.
+     * Callers pass a NewContact (no id, no timestamps) — the store owns
+     * identity generation and rejects duplicates.
+     *
+     * @throws DuplicateContact if the email is already registered.
+     */
     public function save(NewContact $contact): ContactId;
 }
 ```
