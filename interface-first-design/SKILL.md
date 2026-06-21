@@ -72,6 +72,10 @@ interface ContactRepository
 {
     public function findByEmail(Email $email): ?Contact;
 
+    // Notice the `NewContact` value object hides the internal structure of a contact?
+    // Notice how the implementation checks for duplicates for you and does other important functionality caller wouldn't want to worry about? 
+    // This is a good example of the point of this skill and how to design an interface that is useful for the caller and hides the implementation details.
+
     /** @throws DuplicateContact if the email is already registered. */
     public function save(NewContact $contact): ContactId;
 }
@@ -81,14 +85,6 @@ A `LeadCaptureHandler` injects this interface and calls it without knowing wheth
 
 ```php
 $contact = $this->contacts->findByEmail(new Email($input->email));
-
-if ($contact === null) {
-    $contactId = $this->contacts->save(new NewContact(
-        email: new Email($input->email),
-        name: new FullName($input->firstName, $input->lastName),
-    ));
-    $this->pipeline->openDeal($contactId, DealSource::WebForm);
-}
 ```
 
 Two methods, value objects at the boundary (`Email`, `NewContact`, `ContactId`), two distinct failure modes — and a trivial in-memory fake covers both. The Eloquent and HubSpot implementations come *after* sign-off.
