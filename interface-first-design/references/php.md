@@ -54,27 +54,33 @@ final class FakePaymentGateway implements PaymentGateway
 
 If you *can't* write a trivial fake — because the contract is fat, or the real work is reachable only through a static facade/global — that's the signal to fix the contract, not the test.
 
-## Example: a repository contract
+## Example: a CRM pipeline repository
 
 ```php
 /**
- * Reads and persists User aggregates.
- * Implementations must treat email as a unique key.
+ * Persists and retrieves leads within the CRM pipeline.
+ * "Not found" → null return. Exceptions mean the source is unavailable.
+ * findByStage() returns leads newest-first by created_at.
  *
- * @example
- *   $user = $users->findByEmail(new Email('a@b.com'))
- *       ?? throw new UserNotFound();
+ * @throws LeadRepositoryException if the data source is unreachable.
  */
-interface UserRepository
+interface LeadRepository
 {
-    public function findByEmail(Email $email): ?User;
+    public function findById(LeadId $id): ?Lead;
 
-    /** @return list<User> */
-    public function activeSince(DateTimeImmutable $since): array;
+    /** @return list<Lead> Ordered newest-first by created_at. */
+    public function findByStage(LeadStage $stage): array;
 
-    /** @throws DuplicateEmail */
-    public function add(User $user): void;
+    /** $lead must not have an id yet; returns the assigned id. */
+    public function save(NewLead $lead): LeadId;
+
+    /** Records the transition timestamp alongside the stage change. */
+    public function advanceStage(LeadId $id, LeadStage $to): void;
 }
 ```
 
-Small, role-named (`UserRepository`, not `UserManager`), value objects at the boundary (`Email`, not `string`), failure modes declared, array shape pinned in PHPDoc, usage example for the next reader. The Eloquent/Doctrine implementation comes only after this is signed off.
+**Deliberately omitted:**
+- `deleteById()` — no caller needs it yet; add when one does
+- `findByAssignedUser()` — belongs in a separate read-side query contract, not here
+
+Value objects (`LeadId`, `NewLead`) and a backed enum (`LeadStage`) carry the contract instead of primitives. The ordering invariant and failure modes are in the doc comment, not hidden in an implementation. The fake is four in-memory methods — no mocking framework needed. Eloquent and HubSpot implementations come after sign-off.

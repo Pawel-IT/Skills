@@ -59,25 +59,36 @@ Only once these pass: present for sign-off, then implement.
 
 ## Example (PHP)
 
-A feature needs to look up CRM contacts. Don't start with a `ContactManager` class wired to a database query. Start with the seam:
+A feature needs to capture inbound leads. Don't reach for a `ContactManager` class wired to Eloquent and a HubSpot client. Start with the seam:
 
 ```php
 /**
- * Looks up CRM contacts by identifying attributes.
- * Returns null when no match exists — never throws for "not found."
+ * Reads and persists CRM contacts.
+ * Returns null when no contact matches — never throws for "not found."
  *
- * @example
- *   $contact = $contacts->findByEmail($form->email);
- *   if ($contact === null) {
- *       $this->leads->create(Lead::fromForm($form));
- *   }
- *
- * @throws ContactSourceException if the underlying source is unavailable.
+ * @throws ContactRepositoryException if the data source is unavailable.
  */
-interface ContactLookup
+interface ContactRepository
 {
-    public function findByEmail(string $email): ?Contact;
+    public function findByEmail(Email $email): ?Contact;
+
+    /** @throws DuplicateContact if the email is already registered. */
+    public function save(NewContact $contact): ContactId;
 }
 ```
 
-Small, names the caller's intent, hides the data source (local DB, HubSpot, Salesforce), trivially fakeable, declares its failure mode. The concrete implementation comes *after* sign-off.
+A `LeadCaptureHandler` injects this interface and calls it without knowing whether the store is Eloquent, HubSpot, or an in-memory fake:
+
+```php
+$contact = $this->contacts->findByEmail(new Email($input->email));
+
+if ($contact === null) {
+    $contactId = $this->contacts->save(new NewContact(
+        email: new Email($input->email),
+        name: new FullName($input->firstName, $input->lastName),
+    ));
+    $this->pipeline->openDeal($contactId, DealSource::WebForm);
+}
+```
+
+Two methods, value objects at the boundary (`Email`, `NewContact`, `ContactId`), two distinct failure modes — and a trivial in-memory fake covers both. The Eloquent and HubSpot implementations come *after* sign-off.
